@@ -5,7 +5,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
-# from data_loader import get_loader
 from model import VqaModel
 from utils.data_loader import get_loader
 
