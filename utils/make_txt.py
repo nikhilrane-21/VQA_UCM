@@ -1,11 +1,10 @@
 import os
 import random
 
-ucm_image_file_dir = "../data/images"
-ucm_images = "../data/ucm_images.txt"  # file path contains the image path
+ucm_image_file_dir = "../datasets/ucm_images"
+ucm_images = "../datasets/ucm_images.txt"  # file path contains the image path
 
 cwd = os.getcwd()[:-6].replace('\\','/') # load error due to the sys path
-print(cwd)
 
 def make_images_txt(ucm_image_file_dir, ucm_images):
     if (os.path.exists(ucm_images)):
