@@ -1,16 +1,25 @@
 import os
+import re
+
+import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from skimage import transform
+from transformers import AutoModel, AutoTokenizer
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
-ucm_image_file_dir = "data/images"
-ucm_vqa_dir = "data/ucm_vqa.txt"  # file path contains the question and answer
-ucm_images = "data/ucm_images.txt"  # file path contains the image path
+ucm_image_file_dir = "datasets/ucm_images"
+ucm_vqa_dir = "datasets/ucm_vqa.txt"  # file path contains the question and answer
+ucm_images = "datasets/ucm_images.txt"  # file path contains the image path
 
 
 def read_label_txt(data_dir):
+    """
+    load the questions and the corresponding answers from the data_dir
+    :param data_dir:
+    :return: question_list, answer_list
+    """
     qst_list = []
     ans_list = []
     with open(data_dir) as f:
@@ -22,12 +31,54 @@ def read_label_txt(data_dir):
         qst_list.append(qst)
     return qst_list, ans_list
 
+def load_str_list(fname):
+    """
+    Load the str from the txt file
+    :param fname:
+    :return:
+    """
+    with open(fname) as f:
+        lines = f.readlines()
+    lines = [l.strip() for l in lines]
+    return lines
+
+SENTENCE_SPLIT_REGEX = re.compile(r'(\W+)')
+
+def tokenize(sent):
+    tokens = SENTENCE_SPLIT_REGEX.split(sent.lower())
+    tokens = [t.strip() for t in tokens if len(t.strip()) > 0]
+    return tokens
+
+class VocabDict:
+    def __init__(self, vocab_file):
+        self.word_list = vocab_file
+        self.word2idx_dict = {w: n_w for n_w, w in enumerate(self.word_list)}
+        self.word2idx_dict["<unk>"] = -1
+        self.word2idx_dict["<pad>"] = 55360
+        self.vocab_size = len(self.word_list)
+        self.unk2idx = self.word2idx_dict['<unk>'] if '<unk>' in self.word2idx_dict else None
+
+    def idx2word(self, n_w):
+        return self.word_list[n_w]
+
+    def word2idx(self, w):
+        if w in self.word2idx_dict:
+            return self.word2idx_dict[w]
+        elif self.unk2idx is not None:
+            return self.unk2idx
+        else:
+            raise ValueError(f'word {w} is not in the dictionary, while <unk> is not contained in the dict')
+
+    def tokenize_and_index(self, sent):
+        idx_l = [self.word2idx(w) for w in tokenize(sent)]
+        return idx_l
+
 class UCM_RS(Dataset):
     """
     UCM RS dataset.
     """
 
-    def __init__(self, qa_file, img_dir, transform=None):
+    def __init__(self, qa_file, img_dir, ptm="bert-base-uncased", max_qst_length=25, transform=None):
         """
         Args:
             csv_file (string): Path to the csv file with annotations.
@@ -38,6 +89,15 @@ class UCM_RS(Dataset):
         self.img_dir = img_dir
         self.qa_file = qa_file
         self.qst, self.ans = read_label_txt(self.qa_file)
+        # self.qst_vocab = VocabDict(self.qst)
+        # self.ans_vocab = VocabDict(self.ans)
+        self.ans_dict = {w: n_w for n_w, w in enumerate(set(self.ans))} # save the answer dict
+
+        # ltms
+        self.tokenizer = AutoTokenizer.from_pretrained(ptm)
+
+        self.max_qst_length = max_qst_length
+
         with open(self.img_dir) as f:
             self.img = [line.strip() for line in f.readlines()]
         self.transform = transform
@@ -58,12 +118,19 @@ class UCM_RS(Dataset):
         img = plt.imread(self.img[idx])
         qst = self.qst[idx]
         ans = self.ans[idx]
-        sample = {'image': img, 'question': qst, 'answer': ans}
+
+        qst2idc = self.tokenizer(qst)['input_ids']
+        ans2idc = self.ans_dict[ans]
+
+        sample = {'image': img, 'question': qst2idc, 'answer': ans2idc}
 
         if self.transform:
             sample = self.transform(sample)
 
         return sample
+
+    def get_ans_dict(self):
+        return self.ans_dict
 
 class Rescale(object):
     """
@@ -132,7 +199,7 @@ class ToTensor(object):
         # torch image: C x H x W
         image = image.transpose((2, 0, 1))
         return {'image': torch.from_numpy(image),
-                'question': qst, 'answer':ans}
+                'question': torch.tensor(qst), 'answer':torch.tensor(ans)}
 
 def construct_data_loader(batch_size, shuffle=True, num_workers=0):
 
@@ -160,4 +227,5 @@ def construct_data_loader(batch_size, shuffle=True, num_workers=0):
 
     return ucm_vqa_train_dataloader, \
            ucm_vqa_eval_dataloader, \
-           ucm_vqa_test_dataloader
+           ucm_vqa_test_dataloader, \
+        transformed_dataset.get_ans_dict()
