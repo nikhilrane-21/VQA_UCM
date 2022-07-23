@@ -77,6 +77,9 @@ def train():
 
     for epoch in range(args.num_epochs):
         batch_step_size = len(ucm_vqa_train_set) / args.batch_size
+        acc = 0.0
+        corr = 0.0
+        running_loss = 0
 
         for i_batch, sample_batched in enumerate(ucm_vqa_train_dataloader):
             image = sample_batched['image'].to(device)
@@ -97,11 +100,41 @@ def train():
                 print('| Training SET | Epoch [{:02d}/{:02d}], Step [{:04d}/{:04d}], Loss: {:.4f}'
                       .format(epoch + 1, args.num_epochs, i_batch, int(batch_step_size),
                               loss.item()))
+            running_loss += loss.item()
+            corr += torch.stack([(label == pred.to(device))]).any(dim=0).sum()
+        # Print the average loss and accuracy in an epoch.
+        epoch_loss = loss.item() / batch_step_size
+        acc = corr.double() / len(ucm_vqa_eval_dataloader)  # multiple choice
+
+        print('| Training SET | Epoch [{:02d}/{:02d}], Loss: {:.4f}, Acc: {:.4f} \n'
+              .format(epoch + 1, args.num_epochs, epoch_loss, acc))
+
         # Save the model check points
         if (epoch + 1) % args.save_step == 0:
             torch.save({'epoch': epoch + 1, 'state_dict': model.state_dict()},
                        os.path.join(args.model_dir, 'model-epoch-{:02d}.ckpt'.format(epoch + 1)))
 
+def eval():
+    model = torch.load(os.path.join(args.model_dir, 'model-epoch-{:02d}.ckpt'.format(args.num_epochs))).to(device)
+    with torch.no_grad():
+        acc = 0.0
+        corr = 0.0
+        for i_batch, sample_batched in enumerate(ucm_vqa_eval_dataloader):
+            image = sample_batched['image'].to(device)
+            question = sample_batched['question'].to(device)
+            label = sample_batched['answer'].to(device)
 
+            output = model(image, question) # [batch_size, ans_vocab_size]
+            _, pred = torch.max(output, 1) # [batch_size]
 
-train()
+            corr += torch.stack([(label == pred.to(device))]).any(dim=0).sum()
+            print(corr)
+        acc = corr.double() / len(ucm_vqa_eval_dataloader)  # multiple choice
+        with open(os.path.join(args.model_dir, 'model-epoch-{:02d}-evaluation.txt'.format(args.num_epochs))) as file:
+            file.write(f"Accuracy is {acc}" + "\n")
+
+def main():
+    train()
+    eval()
+
+main()
