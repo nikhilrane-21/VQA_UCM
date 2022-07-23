@@ -26,10 +26,10 @@ parser.add_argument('--hidden_size', type=int, default=512, help='hidden_size in
 parser.add_argument('--learning_rate', type=float, default=0.001, help='learning rate for training.')
 parser.add_argument('--step_size', type=int, default=10, help='period of learning rate decay.')
 parser.add_argument('--gamma', type=float, default=0.1, help='multiplicative factor of learning rate decay.')
-parser.add_argument('--num_epochs', type=int, default=30, help='number of epochs.')
+parser.add_argument('--num_epochs', type=int, default=3, help='number of epochs.')
 parser.add_argument('--batch_size', type=int, default=2, help='batch_size.')
 parser.add_argument('--num_workers', type=int, default=8, help='number of processes working on cpu.')
-parser.add_argument('--save_step', type=int, default=15, help='save step of model.')
+parser.add_argument('--save_step', type=int, default=1, help='save step of model.')
 args = parser.parse_args()
 
 # Load the dataset (dataloader)
@@ -102,11 +102,12 @@ def train():
                               loss.item()))
             running_loss += loss.item()
             corr += torch.stack([(label == pred.to(device))]).any(dim=0).sum()
+            print(corr)
         # Print the average loss and accuracy in an epoch.
-        epoch_loss = loss.item() / batch_step_size
+        epoch_loss = running_loss / batch_step_size
         acc = corr.double() / len(ucm_vqa_eval_dataloader)  # multiple choice
 
-        print('| Training SET | Epoch [{:02d}/{:02d}], Loss: {:.4f}, Acc: {:.4f} \n'
+        print('| Training SET | Epoch [{:02d}/{:02d}], Loss: {:.4f}, Accuracy: {:.4f} \n'
               .format(epoch + 1, args.num_epochs, epoch_loss, acc))
 
         # Save the model check points
