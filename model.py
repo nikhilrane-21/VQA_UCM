@@ -3,6 +3,9 @@ import torch.nn as nn
 import torchvision.models as models
 from transformers import AutoModel, AutoTokenizer
 
+from transformers import logging
+logging.set_verbosity_warning()
+
 class ImgEncoder(nn.Module):
     def __init__(self, embed_size):
         """
@@ -10,31 +13,37 @@ class ImgEncoder(nn.Module):
         :param embed_size:
         """
         super(ImgEncoder, self).__init__()
-        ptm = models.vgg19(weights=models.VGG19_Weights.DEFAULT) # load the pretrained model
-        in_features = ptm.classifier[-1].in_features # input size of the feature vector
+        ptm = models.vgg19(weights=models.VGG19_Weights.DEFAULT)  # load the pretrained model
+        in_features = ptm.classifier[-1].in_features  # input size of the feature vector
         ptm.classifier = nn.Sequential(
-            *list(ptm.classifier.children())[:-1] # remove the last fc layer of the ptm (score values from the ImageNet)
+            *list(ptm.classifier.children())[:-1]
+            # remove the last fc layer of the ptm (score values from the ImageNet)
         )
         self.model = ptm
-        self.fc = nn.Linear(in_features, embed_size) # feature vector of image
+        self.fc = nn.Linear(in_features, embed_size)  # feature vector of image
+
     def forward(self, img):
         """
         Extract feature vector from image vector
         :param image:
         :return: img_feature
         """
-        with torch.no_grad():
-            img = img.float()
-            img_feature = self.model(img) # load the ptm model
-        img_feature = self.fc(img_feature) # [batch_size, embed_size]
+        # with torch.no_grad():
+        #     img = img.float()
+        #     img_feature = self.model(img) # load the ptm model
+        img = img.float()
+        img_feature = self.model(img)  # load the ptm model
+        img_feature = self.fc(img_feature)  # [batch_size, embed_size]
 
         l2_norm = img_feature.norm(p=2, dim=1, keepdim=True).detach()
-        img_feature = img_feature.div(l2_norm) # l2-normalized feature vector
+        img_feature = img_feature.div(l2_norm)  # l2-normalized feature vector
 
         return img_feature
 
+
 class QstEncoder(nn.Module):
-    def __init__(self, qst_vocab_size=15, word_embed_size=10, embed_size=10, num_layers=3, hidden_size=5, using_transformers=False):
+    def __init__(self, qst_vocab_size=15, word_embed_size=10, embed_size=10, num_layers=3, hidden_size=5,
+                 using_transformers=False):
         """
         Question Encoder for VQA
         :param qst_vocab_size:
@@ -55,10 +64,11 @@ class QstEncoder(nn.Module):
             self.tanh = nn.Tanh()
             self.lstm = nn.LSTM(word_embed_size, hidden_size, num_layers)
             self.fc = nn.Linear(2 * num_layers * hidden_size, embed_size)  # 2 for hidden and cell states
+
     def forward(self, qst):
         if self.using_transformers:
             qst_vec = self.qst_tokenizer(qst, return_tensors='pt')
-            qst_feature = self.qst_encoder(**qst_vec)[-1] # [batch_size, embed_size]
+            qst_feature = self.qst_encoder(**qst_vec)[-1]  # [batch_size, embed_size]
             return qst_feature
 
         qst_vec = self.word2vec(qst)  # [batch_size, max_qst_length=30, word_embed_size=300]
@@ -73,14 +83,21 @@ class QstEncoder(nn.Module):
 
         return qst_feature
 
+
 class QstEncoder_ptm(nn.Module):
-    def __init__(self, ptm="bert-base-uncased"):
+    def __init__(self, embed_size, ptm="bert-base-uncased"):
         super(QstEncoder_ptm, self).__init__()
         # self.qst_tokenizer = AutoTokenizer.from_pretrained(ptm)
         self.qst_encoder = AutoModel.from_pretrained(ptm)
+        self.fc = nn.Linear(768, embed_size)  # feature vector of qst
+
     def forward(self, qst):
         # qst_vec = self.qst_tokenizer(qst, return_tensors='pt')
         qst_feature = self.qst_encoder(input_ids=qst)[-1]  # [batch_size, embed_size]
+        qst_feature = self.fc(qst_feature)
+        l2_norm = qst_feature.norm(p=2, dim=1, keepdim=True).detach()
+        qst_feature = qst_feature.div(l2_norm)  # l2-normalized feature vector as img-encoder
+
         return qst_feature
 
 
@@ -89,7 +106,7 @@ class VqaModel(nn.Module):
         super(VqaModel, self).__init__()
         self.img_encoder = ImgEncoder(embed_size)
         # self.qst_encoder = QstEncoder(qst_vocab_size, word_embed_size, embed_size, num_layers, hidden_size)
-        self.qst_encoder = QstEncoder_ptm(ptm="bert-base-uncased")
+        self.qst_encoder = QstEncoder_ptm(embed_size=embed_size, ptm="bert-base-uncased")
         self.tanh = nn.Tanh()
         self.dropout = nn.Dropout(0.5)
         self.fc1 = nn.Linear(embed_size, ans_vocab_size)
