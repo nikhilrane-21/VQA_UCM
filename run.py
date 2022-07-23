@@ -26,10 +26,10 @@ parser.add_argument('--hidden_size', type=int, default=512, help='hidden_size in
 parser.add_argument('--learning_rate', type=float, default=0.001, help='learning rate for training.')
 parser.add_argument('--step_size', type=int, default=10, help='period of learning rate decay.')
 parser.add_argument('--gamma', type=float, default=0.1, help='multiplicative factor of learning rate decay.')
-parser.add_argument('--num_epochs', type=int, default=3, help='number of epochs.')
-parser.add_argument('--batch_size', type=int, default=2, help='batch_size.')
+parser.add_argument('--num_epochs', type=int, default=30, help='number of epochs.')
+parser.add_argument('--batch_size', type=int, default=8, help='batch_size.')
 parser.add_argument('--num_workers', type=int, default=8, help='number of processes working on cpu.')
-parser.add_argument('--save_step', type=int, default=1, help='save step of model.')
+parser.add_argument('--save_step', type=int, default=15, help='save step of model.')
 args = parser.parse_args()
 
 # Load the dataset (dataloader)
@@ -76,6 +76,8 @@ def train():
     scheduler = lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
 
     for epoch in range(args.num_epochs):
+        model.train()
+
         batch_step_size = len(ucm_vqa_train_set) / args.batch_size
         acc = 0.0
         corr = 0.0
@@ -95,14 +97,15 @@ def train():
                 loss.backward()
                 optimizer.step()
 
+            # scheduler.step()
+
             # Print the average loss in a mini-batch.
-            if i_batch % 100 == 0:
+            if i_batch % 1 == 0:
                 print('| Training SET | Epoch [{:02d}/{:02d}], Step [{:04d}/{:04d}], Loss: {:.4f}'
                       .format(epoch + 1, args.num_epochs, i_batch, int(batch_step_size),
                               loss.item()))
             running_loss += loss.item()
             corr += torch.stack([(label == pred.to(device))]).any(dim=0).sum()
-            print(corr)
         # Print the average loss and accuracy in an epoch.
         epoch_loss = running_loss / batch_step_size
         acc = corr.double() / len(ucm_vqa_eval_dataloader)  # multiple choice
@@ -112,11 +115,15 @@ def train():
 
         # Save the model check points
         if (epoch + 1) % args.save_step == 0:
-            torch.save({'epoch': epoch + 1, 'state_dict': model.state_dict()},
-                       os.path.join(args.model_dir, 'model-epoch-{:02d}.ckpt'.format(epoch + 1)))
+            torch.save(model.state_dict(), os.path.join(args.model_dir, 'model-epoch-{:02d}.ckpt'.format(epoch + 1)))
 
 def eval():
-    model = torch.load(os.path.join(args.model_dir, 'model-epoch-{:02d}.ckpt'.format(args.num_epochs))).to(device)
+    model = VqaModel(
+        embed_size=768,  # same as the Bert(ptm)
+        ans_vocab_size=len(ans_dict)
+    ).to(device)
+    model.load_state_dict(torch.load(os.path.join(args.model_dir, 'model-epoch-{:02d}.ckpt'.format(args.num_epochs))))
+
     with torch.no_grad():
         acc = 0.0
         corr = 0.0
@@ -129,9 +136,10 @@ def eval():
             _, pred = torch.max(output, 1) # [batch_size]
 
             corr += torch.stack([(label == pred.to(device))]).any(dim=0).sum()
-            print(corr)
         acc = corr.double() / len(ucm_vqa_eval_dataloader)  # multiple choice
-        with open(os.path.join(args.model_dir, 'model-epoch-{:02d}-evaluation.txt'.format(args.num_epochs))) as file:
+        print('| Evaluation SET | Accuracy: {:.4f} \n'
+              .format(acc))
+        with open(os.path.join(args.model_dir, 'model-epoch-{:02d}-evaluation.txt'.format(args.num_epochs)), "w") as file:
             file.write(f"Accuracy is {acc}" + "\n")
 
 def main():
