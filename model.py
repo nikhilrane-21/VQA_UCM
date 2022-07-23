@@ -28,13 +28,10 @@ class ImgEncoder(nn.Module):
         :param image:
         :return: img_feature
         """
-        # with torch.no_grad():
-        #     img = img.float()
-        #     img_feature = self.model(img) # load the ptm model
-        img = img.float()
-        img_feature = self.model(img)  # load the ptm model
+        with torch.no_grad():
+            img = img.float()
+            img_feature = self.model(img) # load the ptm model
         img_feature = self.fc(img_feature)  # [batch_size, embed_size]
-
         l2_norm = img_feature.norm(p=2, dim=1, keepdim=True).detach()
         img_feature = img_feature.div(l2_norm)  # l2-normalized feature vector
 
@@ -95,8 +92,8 @@ class QstEncoder_ptm(nn.Module):
         # qst_vec = self.qst_tokenizer(qst, return_tensors='pt')
         qst_feature = self.qst_encoder(input_ids=qst)[-1]  # [batch_size, embed_size]
         qst_feature = self.fc(qst_feature)
-        l2_norm = qst_feature.norm(p=2, dim=1, keepdim=True).detach()
-        qst_feature = qst_feature.div(l2_norm)  # l2-normalized feature vector as img-encoder
+        # l2_norm = qst_feature.norm(p=2, dim=1, keepdim=True).detach()
+        # qst_feature = qst_feature.div(l2_norm)  # l2-normalized feature vector as img-encoder
 
         return qst_feature
 
@@ -109,20 +106,18 @@ class VqaModel(nn.Module):
         self.qst_encoder = QstEncoder_ptm(embed_size=embed_size, ptm="bert-base-uncased")
         self.tanh = nn.Tanh()
         self.dropout = nn.Dropout(0.5)
-        self.fc1 = nn.Linear(embed_size, ans_vocab_size)
-        self.fc2 = nn.Linear(ans_vocab_size, ans_vocab_size)
+        self.fc = nn.Linear(embed_size, ans_vocab_size)
 
     def forward(self, img, qst):
         img_feature = self.img_encoder(img)  # [batch_size, embed_size]
         qst_feature = self.qst_encoder(qst)  # [batch_size, embed_size]
         # Fusion strategy - 1: Element-wise
         combined_feature = self._fusion_element_wise(img_feature, qst_feature)  # [batch_size, embed_size]
+        # Fusion strategy - 2: Concatenation
+        # combined_feature = self._fusion_concatenate(img_feature, qst_feature)  # [batch_size, embed_size]
         combined_feature = self.tanh(combined_feature)
         combined_feature = self.dropout(combined_feature)
-        combined_feature = self.fc1(combined_feature)  # [batch_size, ans_vocab_size=1000]
-        combined_feature = self.tanh(combined_feature)
-        combined_feature = self.dropout(combined_feature)
-        combined_feature = self.fc2(combined_feature)  # [batch_size, ans_vocab_size=1000]
+        combined_feature = self.fc(combined_feature)  # [batch_size, ans_vocab_size=1000]
 
         return combined_feature
 
@@ -135,9 +130,18 @@ class VqaModel(nn.Module):
         """
         return torch.mul(img_feature, qst_feature)
 
+    def _fusion_concatenate(self, img_feature, qst_feature):
+        """
+        Fusion strategy - 2 : Concatenation
+        :param img_feature:
+        :param qst_feature:
+        :return:
+        """
+        return torch.cat((img_feature, qst_feature),1)
+
     def _fusion_MCB(self, img_feature, qst_feature):
         """
-        Fusion strategy - 2: MCB
+        Fusion strategy - 3: MCB
         :param img_feature:
         :param qst_feature:
         :return:
@@ -146,7 +150,7 @@ class VqaModel(nn.Module):
 
     def _fusion_MUTAN(self, img_feature, qst_feature):
         """
-        Fusion strategy - 3: MUTAN
+        Fusion strategy - 4: MUTAN
         :param img_feature:
         :param qst_feature:
         :return:

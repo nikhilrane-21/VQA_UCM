@@ -23,11 +23,11 @@ parser.add_argument('--embed_size', type=int, default=1024, help='embedding size
 parser.add_argument('--word_embed_size', type=int, default=300, help='embedding size of word used for the input in the LSTM.')
 parser.add_argument('--num_layers', type=int, default=2, help='number of layers of the RNN(LSTM).')
 parser.add_argument('--hidden_size', type=int, default=512, help='hidden_size in the LSTM.')
-parser.add_argument('--learning_rate', type=float, default=0.001, help='learning rate for training.')
+parser.add_argument('--learning_rate', type=float, default=0.01, help='learning rate for training.')
 parser.add_argument('--step_size', type=int, default=10, help='period of learning rate decay.')
 parser.add_argument('--gamma', type=float, default=0.1, help='multiplicative factor of learning rate decay.')
 parser.add_argument('--num_epochs', type=int, default=30, help='number of epochs.')
-parser.add_argument('--batch_size', type=int, default=8, help='batch_size.')
+parser.add_argument('--batch_size', type=int, default=4, help='batch_size.')
 parser.add_argument('--num_workers', type=int, default=8, help='number of processes working on cpu.')
 parser.add_argument('--save_step', type=int, default=15, help='save step of model.')
 args = parser.parse_args()
@@ -63,17 +63,23 @@ def train():
     )
 
     model = VqaModel(
-        embed_size=2096, # same as the Bert(ptm)
+        embed_size=128, # same as the Bert(ptm)
         ans_vocab_size=len(ans_dict)
     ).to(device)
 
     # print(model)
 
     criterion = nn.CrossEntropyLoss()
-    params = list(model.img_encoder.fc.parameters()) \
-        + list(model.qst_encoder.parameters()) \
-        + list(model.fc1.parameters()) \
-        + list(model.fc2.parameters()) # indicate what parameters need to be updated
+
+    # params = list(model.img_encoder.fc.parameters()) \
+    #     + list(model.qst_encoder.parameters()) \
+    #     + list(model.fc1.parameters()) \
+    #     + list(model.fc2.parameters()) # indicate what parameters need to be updated
+
+    params = list(model.img_encoder.parameters()) \
+            + list(model.img_encoder.fc.parameters()) \
+            + list(model.fc.parameters())  # indicate what parameters need to be updated
+
     optimizer = optim.Adam(params, lr=args.learning_rate)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
 
