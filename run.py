@@ -63,9 +63,11 @@ def train():
     )
 
     model = VqaModel(
-        embed_size=768, # same as the Bert(ptm)
+        embed_size=2096, # same as the Bert(ptm)
         ans_vocab_size=len(ans_dict)
     ).to(device)
+
+    # print(model)
 
     criterion = nn.CrossEntropyLoss()
     params = list(model.img_encoder.fc.parameters()) \
@@ -119,7 +121,7 @@ def train():
 
 def eval():
     model = VqaModel(
-        embed_size=768,  # same as the Bert(ptm)
+        embed_size=2096,  # same as the Bert(ptm)
         ans_vocab_size=len(ans_dict)
     ).to(device)
     model.load_state_dict(torch.load(os.path.join(args.model_dir, 'model-epoch-{:02d}.ckpt'.format(args.num_epochs))))
