@@ -124,7 +124,7 @@ class UCM_RS(Dataset):
         qst2idc = self.tokenizer(qst)['input_ids']
 
         ans2idc = torch.tensor(self.ans_dict[ans])
-        ans2idc = Fun.one_hot(ans2idc, num_classes=len(set(self.ans)))
+        ans2idc = Fun.one_hot(ans2idc, num_classes=len(set(self.ans))).float()
 
         sample = {'image': img, 'question': qst2idc, 'answer': ans2idc}
 
@@ -203,7 +203,7 @@ class ToTensor(object):
         # torch image: C x H x W
         image = image.transpose((2, 0, 1))
         return {'image': torch.from_numpy(image),
-                'question': qst, 'answer':ans}
+                'question': torch.tensor(qst), 'answer':torch.tensor(ans)}
 
 def construct_data_loader(batch_size, shuffle=True, num_workers=0):
 
