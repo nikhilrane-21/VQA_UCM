@@ -76,8 +76,7 @@ def train():
     #     + list(model.fc1.parameters()) \
     #     + list(model.fc2.parameters()) # indicate what parameters need to be updated
 
-    params = list(model.img_encoder.parameters()) \
-            + list(model.img_encoder.fc.parameters()) \
+    params = list(model.img_encoder.fc.parameters()) \
             + list(model.fc.parameters())  # indicate what parameters need to be updated
 
     optimizer = optim.Adam(params, lr=args.learning_rate)
