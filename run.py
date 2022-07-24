@@ -27,7 +27,7 @@ parser.add_argument('--learning_rate', type=float, default=0.01, help='learning 
 parser.add_argument('--step_size', type=int, default=10, help='period of learning rate decay.')
 parser.add_argument('--gamma', type=float, default=0.1, help='multiplicative factor of learning rate decay.')
 parser.add_argument('--num_epochs', type=int, default=30, help='number of epochs.')
-parser.add_argument('--batch_size', type=int, default=4, help='batch_size.')
+parser.add_argument('--batch_size', type=int, default=2, help='batch_size.')
 parser.add_argument('--num_workers', type=int, default=8, help='number of processes working on cpu.')
 parser.add_argument('--save_step', type=int, default=15, help='save step of model.')
 args = parser.parse_args()
@@ -99,7 +99,9 @@ def train():
 
             with torch.set_grad_enabled(True):
                 output = model(image, question) # [batch_size, ans_vocab_size]
-                _, pred = torch.max(output, 1) # [batch_size]
+                # _, pred = torch.max(output, 1) # [batch_size] (without onehot)
+                # one-hot
+                pred = output
                 loss = criterion(output, label)
                 loss.backward()
                 optimizer.step()
