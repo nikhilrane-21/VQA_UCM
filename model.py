@@ -13,7 +13,7 @@ class ImgEncoder(nn.Module):
         :param embed_size:
         """
         super(ImgEncoder, self).__init__()
-        ptm = models.vgg19(weights=models.VGG19_Weights.DEFAULT)  # load the pretrained model
+        ptm = models.vgg19()  # load the pretrained model
         in_features = ptm.classifier[-1].in_features  # input size of the feature vector
         ptm.classifier = nn.Sequential(
             *list(ptm.classifier.children())[:-1]

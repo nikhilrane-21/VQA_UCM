@@ -10,8 +10,9 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import logging
 logging.set_verbosity_warning()
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+device = torch.device('cpu')
 # Arg-parser
 parser = argparse.ArgumentParser()
 parser.add_argument('--input_dir', type=str, default='./datasets', help='input directory for visual question answering.')
@@ -64,7 +65,7 @@ def train():
 
     model = VqaModel(
         embed_size=128, # same as the Bert(ptm)
-        ans_vocab_size=len(ans_dict)
+        ans_vocab_size=len(ans_dict)-1
     ).to(device)
 
     # print(model)
@@ -114,7 +115,7 @@ def train():
                       .format(epoch + 1, args.num_epochs, i_batch, int(batch_step_size),
                               loss.item()))
             running_loss += loss.item()
-            corr += torch.stack([(label == pred.to(device))]).any(dim=0).sum()
+            corr += torch.stack([(torch.argmax(label) == torch.argmax(pred).to(device))]).any(dim=0).sum()
         # Print the average loss and accuracy in an epoch.
         epoch_loss = running_loss / batch_step_size
         acc = corr.double() / len(ucm_vqa_eval_dataloader)  # multiple choice
