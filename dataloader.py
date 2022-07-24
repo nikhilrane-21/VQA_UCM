@@ -3,6 +3,7 @@ import re
 
 import numpy as np
 import torch
+import torch.nn.functional as Fun
 import matplotlib.pyplot as plt
 from skimage import transform
 from transformers import AutoModel, AutoTokenizer
@@ -82,7 +83,7 @@ class UCM_RS(Dataset):
         """
         Args:
             csv_file (string): Path to the csv file with annotations.
-            root_dir (string): Directory with all the images.
+            root_dir (string): Directory with all the ucm_images.
             transform (callable, optional): Optional transform to be applied
                 on a sample.
         """
@@ -108,7 +109,7 @@ class UCM_RS(Dataset):
     def __getitem__(self, idx):
         """
         to support the indexing such that dataset[i] can be used to get i-th sample.
-        * leave the reading of images to __getitem__ to keep the memory efficient because all the images are not stored in the memory at once but read as required.
+        * leave the reading of ucm_images to __getitem__ to keep the memory efficient because all the ucm_images are not stored in the memory at once but read as required.
         :param idx:
         :return:
         """
@@ -116,11 +117,14 @@ class UCM_RS(Dataset):
             idx = idx.tolist()
 
         img = plt.imread(self.img[idx])
+
         qst = self.qst[idx]
         ans = self.ans[idx]
 
         qst2idc = self.tokenizer(qst)['input_ids']
+
         ans2idc = self.ans_dict[ans]
+        ans2idc = Fun.one_hot(ans2idc, num_classes=len(set(self.ans)))
 
         sample = {'image': img, 'question': qst2idc, 'answer': ans2idc}
 
@@ -219,7 +223,7 @@ def construct_data_loader(batch_size, shuffle=True, num_workers=0):
         generator=torch.Generator().manual_seed(1234)  # seed 1234
     )
 
-    # Batching the data, shuffling the data, load the data in parallel using multiprocessing workers
+    # Batching the datasets, shuffling the datasets, load the datasets in parallel using multiprocessing workers
     # using DataLoader
     ucm_vqa_train_dataloader = DataLoader(ucm_vqa_train_set, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
     ucm_vqa_eval_dataloader = DataLoader(ucm_vqa_val_set, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
