@@ -146,6 +146,7 @@ class VqaModel(nn.Module):
         :param qst_feature:
         :return:
         """
+        # TODO: add the fusion_MCB function
         pass
 
     def _fusion_MUTAN(self, img_feature, qst_feature):
@@ -155,4 +156,14 @@ class VqaModel(nn.Module):
         :param qst_feature:
         :return:
         """
+        # TODO: add the fusion_MUTAN function, http://dx.doi.org/10.1109/ICCV.2017.285
         pass
+
+    def _fusion_Block(self, img_feature, qst_feature):
+        """
+
+        :param img_feature:
+        :param qst_feature:
+        :return:
+        """
+        # TODO: https://arxiv.org/pdf/1902.00038

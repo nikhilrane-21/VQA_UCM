@@ -67,7 +67,7 @@ def train():
         ans_vocab_size=len(ans_dict)
     ).to(device)
 
-    # print(model)
+    print(model)
 
     criterion = nn.CrossEntropyLoss()
 
