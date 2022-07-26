@@ -156,3 +156,28 @@ class VqaModel(nn.Module):
         :return:
         """
         pass
+
+
+class VqaModel_test_Qst(VqaModel):
+    """
+    Remove the img_encoder, only test the question embedding performance
+    """
+    def forward(self, img, qst):
+        qst_feature = self.qst_encoder(qst)
+        combined_feature = self.tanh(qst_feature)
+        combined_feature = self.dropout(combined_feature)
+        combined_feature = self.fc(combined_feature)
+
+        return combined_feature
+
+class VqaModel_test_Img(VqaModel):
+    """
+    Remove the qst_encoder, only test the image embedding performance
+    """
+    def forward(self, img, qst):
+        img_feature = self.img_encoder(img)
+        combined_feature = self.tanh(img_feature)
+        combined_feature = self.dropout(combined_feature)
+        combined_feature = self.fc(combined_feature)
+
+        return combined_feature

@@ -27,10 +27,10 @@ parser.add_argument('--hidden_size', type=int, default=512, help='hidden_size in
 parser.add_argument('--learning_rate', type=float, default=0.01, help='learning rate for training.')
 parser.add_argument('--step_size', type=int, default=10, help='period of learning rate decay.')
 parser.add_argument('--gamma', type=float, default=0.1, help='multiplicative factor of learning rate decay.')
-parser.add_argument('--num_epochs', type=int, default=30, help='number of epochs.')
-parser.add_argument('--batch_size', type=int, default=2, help='batch_size.')
+parser.add_argument('--num_epochs', type=int, default=3, help='number of epochs.')
+parser.add_argument('--batch_size', type=int, default=4, help='batch_size.')
 parser.add_argument('--num_workers', type=int, default=8, help='number of processes working on cpu.')
-parser.add_argument('--save_step', type=int, default=15, help='save step of model.')
+parser.add_argument('--save_step', type=int, default=1, help='save step of model.')
 args = parser.parse_args()
 
 # Load the dataset (dataloader)
