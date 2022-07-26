@@ -13,7 +13,7 @@ class ImgEncoder(nn.Module):
         :param embed_size:
         """
         super(ImgEncoder, self).__init__()
-        ptm = models.vgg19(weights=models.VGG19_Weights.DEFAULT)  # load the pretrained model
+        ptm = models.vgg19()  # load the pretrained model
         in_features = ptm.classifier[-1].in_features  # input size of the feature vector
         ptm.classifier = nn.Sequential(
             *list(ptm.classifier.children())[:-1]
@@ -167,3 +167,27 @@ class VqaModel(nn.Module):
         :return:
         """
         # TODO: https://arxiv.org/pdf/1902.00038
+
+class VqaModel_test_Qst(VqaModel):
+    """
+    Remove the img_encoder, only test the question embedding performance
+    """
+    def forward(self, img, qst):
+        qst_feature = self.qst_encoder(qst)
+        combined_feature = self.tanh(qst_feature)
+        combined_feature = self.dropout(combined_feature)
+        combined_feature = self.fc(combined_feature)
+
+        return combined_feature
+
+class VqaModel_test_Img(VqaModel):
+    """
+    Remove the qst_encoder, only test the image embedding performance
+    """
+    def forward(self, img, qst):
+        img_feature = self.img_encoder(img)
+        combined_feature = self.tanh(img_feature)
+        combined_feature = self.dropout(combined_feature)
+        combined_feature = self.fc(combined_feature)
+
+        return combined_feature
