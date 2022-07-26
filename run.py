@@ -109,14 +109,14 @@ def train():
 
         # Save the model check points
         if (epoch + 1) % args.save_step == 0:
-            torch.save(model.state_dict(), os.path.join(args.model_dir, 'model-epoch-{:02d}.ckpt'.format(epoch + 1)))
+            torch.save(model.state_dict(), os.path.join(args.model_dir, 'model-epoch-{:02d}.pt'.format(epoch + 1)))
 
 
 
 def eval():
     # load the model (init the model and load states dict)
     model = VqaModel(embed_size=args.embed_size, num_labels=len(ans_dict)).to(device)
-    model.load_state_dict(torch.load(os.path.join(args.model_dir, 'model-epoch-{:02d}.ckpt'.format(args.num_epochs))))
+    model.load_state_dict(torch.load(os.path.join(args.model_dir, 'model-epoch-{:02d}.pt'.format(args.num_epochs))))
 
     with torch.no_grad():
         metric = Accuracy().to(device)
@@ -125,7 +125,7 @@ def eval():
             questions = sample_batched['question'].to(device)
             labels = sample_batched['answer'].int().to(device)
 
-            outputs = model(images)  # [batch_size, ans_vocab_size]
+            outputs = model(images, questions)  # [batch_size, ans_vocab_size]
             _, preds = torch.max(outputs, 1)  # [batch_size]
 
             # update metric
