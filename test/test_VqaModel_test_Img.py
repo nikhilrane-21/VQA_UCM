@@ -22,7 +22,7 @@ parser.add_argument('--log_dir', type=str, default='./logs', help='directory for
 parser.add_argument('--model_dir', type=str, default='./checkpoints', help='directory for saved models.')
 parser.add_argument('--max_qst_length', type=int, default=30, help='maximum length of question, the length in the VQA dataset = 26.')
 parser.add_argument('--max_num_ans', type=int, default=10, help='maximum number of answers.')
-parser.add_argument('--embed_size', type=int, default=512, help='embedding size of feature vector for both image and question.')
+parser.add_argument('--embed_size', type=int, default=1024, help='embedding size of feature vector for both image and question.')
 parser.add_argument('--word_embed_size', type=int, default=300, help='embedding size of word used for the input in the LSTM.')
 parser.add_argument('--num_layers', type=int, default=2, help='number of layers of the RNN(LSTM).')
 parser.add_argument('--hidden_size', type=int, default=512, help='hidden_size in the LSTM.')
@@ -32,7 +32,7 @@ parser.add_argument('--gamma', type=float, default=0.1, help='multiplicative fac
 parser.add_argument('--num_epochs', type=int, default=15, help='number of epochs.')
 parser.add_argument('--batch_size', type=int, default=8, help='batch_size.')
 parser.add_argument('--num_workers', type=int, default=8, help='number of processes working on cpu.')
-parser.add_argument('--save_step', type=int, default=15, help='save step of model.')
+parser.add_argument('--save_step', type=int, default=1, help='save step of model.')
 args = parser.parse_args()
 
 # Load the dataset (dataloader)
@@ -60,7 +60,7 @@ def train():
     )
 
     # Load the model
-    model = VqaModel(embed_size=args.embed_size, num_labels=len(ans_dict)).to(device)
+    model = VqaModel_test_Img(embed_size=128, num_labels=len(ans_dict)).to(device)
 
     # Criterion, optimizer(params)
     criterion = nn.CrossEntropyLoss()
@@ -83,7 +83,7 @@ def train():
 
             optimizer.zero_grad()
 
-            outputs = model(images, questions)  # [batch_size, ans_vocab_size]
+            outputs = model(images)  # [batch_size, ans_vocab_size]
             _, preds = torch.max(outputs, 1)  # [batch_size]
 
             loss = criterion(outputs, labels)
@@ -103,9 +103,6 @@ def train():
         epoch_loss = running_loss / batch_step_size
         print('| Training SET | Epoch [{:02d}/{:02d}], Loss: {:.4f}, Accuracy on all data: {:.4f} \n'
             .format(epoch + 1, args.num_epochs, epoch_loss, acc))
-        with open(os.path.join(args.model_dir, 'model-epoch-{:02d}-evaluation.txt'.format(args.num_epochs)), "w") as file:
-            file.write('| Training SET | Epoch [{:02d}/{:02d}], Loss: {:.4f}, Accuracy on all data: {:.4f} \n'
-            .format(epoch + 1, args.num_epochs, epoch_loss, acc))
 
         # Save the model check points
         if (epoch + 1) % args.save_step == 0:
@@ -115,7 +112,7 @@ def train():
 
 def eval():
     # load the model (init the model and load states dict)
-    model = VqaModel(embed_size=args.embed_size, num_labels=len(ans_dict)).to(device)
+    model = VqaModel_test_Img(embed_size=128, num_labels=len(ans_dict)).to(device)
     model.load_state_dict(torch.load(os.path.join(args.model_dir, 'model-epoch-{:02d}.ckpt'.format(args.num_epochs))))
 
     with torch.no_grad():
@@ -133,7 +130,7 @@ def eval():
 
         acc = metric.compute()
         print('| Evaluation SET | Accuracy: {:.4f} \n'.format(acc))
-        with open(os.path.join(args.model_dir, 'model-epoch-{:02d}-evaluation.txt'.format(args.num_epochs)), "a") as file:
+        with open(os.path.join(args.model_dir, 'model-epoch-{:02d}-evaluation.txt'.format(args.num_epochs)), "w") as file:
             file.write(f"Accuracy is {acc}" + "\n")
 
 

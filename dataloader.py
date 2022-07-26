@@ -14,7 +14,6 @@ ucm_image_file_dir = "datasets/ucm_images"
 ucm_vqa_dir = "datasets/ucm_vqa.txt"  # file path contains the question and answer
 ucm_images = "datasets/ucm_images.txt"  # file path contains the image path
 
-
 def read_label_txt(data_dir):
     """
     load the questions and the corresponding answers from the data_dir
@@ -45,10 +44,6 @@ def load_str_list(fname):
 
 SENTENCE_SPLIT_REGEX = re.compile(r'(\W+)')
 
-def tokenize(sent):
-    tokens = SENTENCE_SPLIT_REGEX.split(sent.lower())
-    tokens = [t.strip() for t in tokens if len(t.strip()) > 0]
-    return tokens
 
 class VocabDict:
     def __init__(self, vocab_file):
@@ -70,8 +65,13 @@ class VocabDict:
         else:
             raise ValueError(f'word {w} is not in the dictionary, while <unk> is not contained in the dict')
 
+    def tokenize(sent):
+        tokens = SENTENCE_SPLIT_REGEX.split(sent.lower())
+        tokens = [t.strip() for t in tokens if len(t.strip()) > 0]
+        return tokens
+
     def tokenize_and_index(self, sent):
-        idx_l = [self.word2idx(w) for w in tokenize(sent)]
+        idx_l = [self.word2idx(w) for w in self.tokenize(sent)]
         return idx_l
 
 class UCM_RS(Dataset):
@@ -123,8 +123,8 @@ class UCM_RS(Dataset):
 
         qst2idc = self.tokenizer(qst)['input_ids']
 
-        ans2idc = torch.tensor(self.ans_dict[ans])
-        ans2idc = Fun.one_hot(ans2idc, num_classes=len(set(self.ans))-1).float()
+        ans2idc = torch.tensor(self.ans_dict[ans]).type(torch.LongTensor)
+        # ans2idc = Fun.one_hot(ans2idc, num_classes=len(set(self.ans))-1).float()
 
         sample = {'image': img, 'question': qst2idc, 'answer': ans2idc}
 
@@ -233,3 +233,12 @@ def construct_data_loader(batch_size, shuffle=True, num_workers=0):
            ucm_vqa_eval_dataloader, \
            ucm_vqa_test_dataloader, \
         transformed_dataset.get_ans_dict()
+
+def test(batch_size=4):
+    ucm_vqa_train_dataloader, \
+    ucm_vqa_eval_dataloader, \
+    ucm_vqa_test_dataloader, \
+    ans_dict = construct_data_loader(batch_size=batch_size)  # return the dataloader of {train, eval, test}
+    print(next(iter(ucm_vqa_train_dataloader)))
+
+# test()

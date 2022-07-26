@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-import torchvision.models as models
+import torchvision
+from torchvision.models import VGG19_Weights
 from transformers import AutoModel, AutoTokenizer
 
 from transformers import logging
@@ -13,7 +14,7 @@ class ImgEncoder(nn.Module):
         :param embed_size:
         """
         super(ImgEncoder, self).__init__()
-        ptm = models.vgg19()  # load the pretrained model
+        ptm = torchvision.models.vgg19(VGG19_Weights.IMAGENET1K_V1)  # load the pretrained model
         in_features = ptm.classifier[-1].in_features  # input size of the feature vector
         ptm.classifier = nn.Sequential(
             *list(ptm.classifier.children())[:-1]
@@ -82,42 +83,40 @@ class QstEncoder(nn.Module):
 
 
 class QstEncoder_ptm(nn.Module):
+    """
+    ptm model for question encoder
+    """
     def __init__(self, embed_size, ptm="bert-base-uncased"):
         super(QstEncoder_ptm, self).__init__()
-        # self.qst_tokenizer = AutoTokenizer.from_pretrained(ptm)
         self.qst_encoder = AutoModel.from_pretrained(ptm)
         self.fc = nn.Linear(768, embed_size)  # feature vector of qst
 
     def forward(self, qst):
-        # qst_vec = self.qst_tokenizer(qst, return_tensors='pt')
         qst_feature = self.qst_encoder(input_ids=qst)[-1]  # [batch_size, embed_size]
         qst_feature = self.fc(qst_feature)
-        # l2_norm = qst_feature.norm(p=2, dim=1, keepdim=True).detach()
-        # qst_feature = qst_feature.div(l2_norm)  # l2-normalized feature vector as img-encoder
 
         return qst_feature
 
 
 class VqaModel(nn.Module):
-    def __init__(self, embed_size, ans_vocab_size):
+    def __init__(self, embed_size, num_labels):
         super(VqaModel, self).__init__()
-        self.img_encoder = ImgEncoder(embed_size)
-        # self.qst_encoder = QstEncoder(qst_vocab_size, word_embed_size, embed_size, num_layers, hidden_size)
+        self.img_encoder = ImgEncoder(embed_size=embed_size)
         self.qst_encoder = QstEncoder_ptm(embed_size=embed_size, ptm="bert-base-uncased")
-        self.tanh = nn.Tanh()
-        self.dropout = nn.Dropout(0.5)
-        self.fc = nn.Linear(embed_size, ans_vocab_size)
+        self.classifier = nn.Sequential(
+            nn.Tanh(),
+            nn.Linear(embed_size, 256),
+            nn.Tanh(),
+            nn.Linear(256, 64),
+            nn.Dropout(0.5),
+            nn.Linear(64, num_labels)
+        )
 
     def forward(self, img, qst):
         img_feature = self.img_encoder(img)  # [batch_size, embed_size]
         qst_feature = self.qst_encoder(qst)  # [batch_size, embed_size]
-        # Fusion strategy - 1: Element-wise
         combined_feature = self._fusion_element_wise(img_feature, qst_feature)  # [batch_size, embed_size]
-        # Fusion strategy - 2: Concatenation
-        # combined_feature = self._fusion_concatenate(img_feature, qst_feature)  # [batch_size, embed_size]
-        combined_feature = self.tanh(combined_feature)
-        combined_feature = self.dropout(combined_feature)
-        combined_feature = self.fc(combined_feature)  # [batch_size, ans_vocab_size=1000]
+        combined_feature = self.classifier(combined_feature)
 
         return combined_feature
 
@@ -168,6 +167,7 @@ class VqaModel(nn.Module):
         """
         # TODO: https://arxiv.org/pdf/1902.00038
 
+
 class VqaModel_test_Qst(VqaModel):
     """
     Remove the img_encoder, only test the question embedding performance
@@ -180,14 +180,24 @@ class VqaModel_test_Qst(VqaModel):
 
         return combined_feature
 
-class VqaModel_test_Img(VqaModel):
+class VqaModel_test_Img(nn.Module):
     """
     Remove the qst_encoder, only test the image embedding performance
     """
-    def forward(self, img, qst):
-        img_feature = self.img_encoder(img)
-        combined_feature = self.tanh(img_feature)
-        combined_feature = self.dropout(combined_feature)
-        combined_feature = self.fc(combined_feature)
+    def __init__(self, embed_size, num_labels):
+        super(VqaModel_test_Img, self).__init__()
+        self.img_encoder = ImgEncoder(embed_size=embed_size)
+        self.classifier = nn.Sequential(
+            nn.Tanh(),
+            nn.Linear(embed_size, 256),
+            nn.Tanh(),
+            nn.Linear(256, 64),
+            nn.Dropout(0.5),
+            nn.Linear(64, num_labels)
+        )
 
-        return combined_feature
+    def forward(self, img):
+        img_feature = self.img_encoder(img)
+        img_feature = self.classifier(img_feature)
+
+        return img_feature
