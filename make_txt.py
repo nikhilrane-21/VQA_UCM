@@ -1,7 +1,7 @@
 import os
 import random
 
-ucm_image_file_dir = "../datasets/ucm_images"
+ucm_image_file_dir = "datasets/Images"
 ucm_images = "../datasets/ucm_images.txt"  # file path contains the image path
 
 cwd = os.getcwd()[:-6].replace('\\','/') # load error due to the sys path

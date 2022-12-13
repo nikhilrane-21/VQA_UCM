@@ -12,14 +12,14 @@ from torchmetrics import Accuracy
 
 from transformers import logging
 logging.set_verbosity_warning()
-
+print(torch.cuda.is_available())
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-disk_path = "../../../media/lscsc/nas/suiyuan"
+disk_path = "."
 
 
 # Arg-parser
 parser = argparse.ArgumentParser()
-parser.add_argument('--input_dir', type=str, default= disk_path + '/datasets', help='input directory for visual question answering.')
+parser.add_argument('--input_dir', type=str, default= disk_path + '/datasets/Images', help='input directory for visual question answering.')
 parser.add_argument('--log_dir', type=str, default='./logs', help='directory for logs.')
 parser.add_argument('--model_dir', type=str, default= disk_path +'/checkpoints', help='directory for saved models.')
 parser.add_argument('--max_qst_length', type=int, default=30, help='maximum length of question, the length in the VQA dataset = 26.')

@@ -73,7 +73,7 @@ def train():
         batch_step_size = len(ucm_vqa_train_set) / args.batch_size
 
         # Initialize metric
-        metric = Accuracy().to(device)
+        metric = Accuracy("binary").to(device)
         scheduler.step()
 
         for i_batch, sample_batched in enumerate(ucm_vqa_train_dataloader):

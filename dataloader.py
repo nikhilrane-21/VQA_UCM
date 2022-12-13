@@ -10,10 +10,10 @@ from transformers import AutoModel, AutoTokenizer
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
-dict_path = "../../../media/lscsc/nas/suiyuan/datasets"
+dict_path = "./datasets"
 
 
-ucm_image_file_dir = dict_path + "/ucm_images"
+ucm_image_file_dir = dict_path + "/Images"
 ucm_vqa_dir = dict_path + "/ucm_vqa.txt"  # file path contains the question and answer
 ucm_images = dict_path + "/ucm_images.txt"  # file path contains the image path
 
